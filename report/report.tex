@@ -1,0 +1,267 @@
+\documentclass[autodetect-engine,dvi=dvipdfmx,ja=standard,
+               a4j,11pt]{bxjsarticle}
+
+\RequirePackage{geometry}
+\geometry{reset,paperwidth=210truemm,paperheight=297truemm}
+\geometry{hmargin=.75truein,top=20truemm,bottom=25truemm,footskip=10truemm,headheight=0mm}
+%\geometry{showframe} % 本文の"枠"を確認したければ，コメントアウト
+\usepackage{graphicx}
+\usepackage{fancyvrb}
+\usepackage{spverbatim}
+\renewcommand{\theFancyVerbLine}{\texttt{\footnotesize{\arabic{FancyVerbLine}:}}}
+
+% paragraph環境の■を数字に変更
+\makeatletter
+\renewcommand{\paragraph}{\@startsection{paragraph}{4}{\z@}%
+  {1.0\Cvs \@plus.5\Cdp \@minus.2\Cdp}%
+  {.1\Cvs \@plus.3\Cdp}%
+  {\reset@font\sffamily\normalsize}
+}
+\renewcommand{\theparagraph}{%
+   (\@arabic\c@paragraph)}
+\makeatother
+\setcounter{secnumdepth}{4}
+
+% 数式モードで太字にするコマンド \bm{}
+\newcommand{\bm}[1]{{\mbox{\boldmath $#1$}}}
+
+% 図・表を参照するためのマクロ
+\newcommand{\figref}[1]{\makebox{図~\ref{#1}}}
+\newcommand{\tabref}[1]{\makebox{表~\ref{#1}}}
+\newcommand{\secref}[1]{\makebox{第~\ref{#1}~章}}
+\newcommand{\mathref}[1]{\makebox{(\ref{#1})式}}
+
+\title{TypeScriptによるWebシンタックスハイライト} 
+\author{松田 悠斗 (MATSUDA, Yuto)}
+\date{\number\year 年\number\month 月\number\day 日}
+
+%%======== 本文 ====================================================%%
+\begin{document}
+\maketitle
+% 目次つきの表紙ページにする場合はコメントを外す
+%{\footnotesize \tableofcontents \newpage}
+
+%--------------------------------------------------------------------%
+\section{概要}
+
+本プロジェクトでは，TypeScriptでWebページ用のシンタックスハイライト(コードの色付け)を作成する．
+ブログにおけるソースコードの自動スタイリングを目的とし，プログラムを作成した．
+本プロジェクトはReactやNext.jsへの移行を想定したものであり，これを利用すれば効率的な自作ハイライティングを実装できる．
+
+また，プログラムの実装だけでなく，Node.jsやその他ツールについての理解を深めることも本プロジェクトの目的である．
+
+本プロジェクトにおける実行環境を以下に示す．
+
+\begin{itemize}
+  \item Ubuntu 20.04.4 LTS
+  \item TypeScript 5.7.2
+  \item Node.js 20.11.1
+  \item npm 10.4.0
+  \item webpack 5.97.0
+\end{itemize}
+
+また，Node.jsバージョン管理ツールVoltaの利用も検討したが，今回は利用を見送った．
+
+%--------------------------------------------------------------------%
+\section{実行環境及びツールの概要}
+
+\subsection{Node.jsとは}
+
+{\bf Node.js}とは，JavaScriptの実行環境である(PythonをインストールするとPythonを開発・実行できることと同じ)．
+従来Webブラウザ上でしか実行できなかったJSを，PCやサーバ上でも実行するために開発された．
+
+サーバサイドのJS実行環境と呼ばれることが多いが，あくまでも「JSの実行環境」なので，クライアントサイドの開発にも利用できる．
+(HTMLにスクリプトを読み込んでブラウザで実行せずとも，クライアントサイドの開発が可能になる．)
+
+Node.jsの利点の1つとしては，オープンソースのパッケージを\verb|npm|でインストールして効率的な開発が可能になる点である(Pythonにおける\verb|pip|と同じ)．
+これにより，\verb|<script>|タグでライブラリのロードを行わずとも，コマンド1つで利用できるようになる．
+
+Node.jsのインストール方法は以下の通りである．
+
+\begin{Verbatim}[numbers=none, xleftmargin=8mm, numbersep=6pt, fontsize=\small, baselinestretch=0.8]
+$ sudo apt install nodejs
+\end{Verbatim}
+
+利用の目的としては，主に以下のものが挙げられる．
+
+\paragraph{新仕様のJS/TSでの開発}
+
+JSやTSの最新仕様で開発した際，ブラウザがその仕様に対応していないことがある．
+この問題を解決するため，旧仕様へのコンパイル(トランスコンパイル)を行う必要があるのだが，主要なトランスコンパイラである\verb|Babel|の実行環境としてNode.jsを用いることが多い．
+
+\paragraph{Webアプリケーションの作成}
+
+Node.jsはWebサーバの役割も果たすことができるため，RailsのようにWebアプリを開発することができる．
+この場合，実行環境はNode.js，言語はJS/TS，フレームワークはExpressやNext.jsがよく用いられる．
+
+その他にも，webpackやvite等のバンドラを利用する際や，Sassのコンパイルのために用いることもある．
+
+\subsection{npmとは}
+
+{\bf npm}とは，Node.jsにおけるパッケージ管理ツールである．
+コマンド1つでパッケージをインストールしたり，バージョンの管理を行うことができる．
+
+\subsubsection{主要なコマンド}
+
+\paragraph{プロジェクトの開始({\tt package.json}の生成)}
+
+\begin{Verbatim}[numbers=none, xleftmargin=8mm, numbersep=6pt, fontsize=\small, baselinestretch=0.8]
+$ npm init
+\end{Verbatim}
+%
+\verb|-y|オプションを付けると，プロジェクトの初期設定情報を記した\verb|package.json|が作成される．
+
+\paragraph{パッケージのインストール}
+
+\begin{Verbatim}[numbers=none, xleftmargin=8mm, numbersep=6pt, fontsize=\small, baselinestretch=0.8]
+$ npm install [package name]
+\end{Verbatim}
+%
+\verb|-g|オプションを付けるとグローバルにインストールでき，どのディレクトリからもパッケージを利用できる．
+
+また，\verb|-D| or \verb|--save-dev|オプションを付けると，開発環境でのローカルインストールになる．
+この場合，\verb|package.json|の\verb|dependencies|ではなく\verb|devDependencies|に追記される．
+例えばGitからクローンした後に必要なパッケージをインストールする場合，\verb|npm i --production|とすると，そのパッケージ群はインストールされない．
+そのため，開発環境依存のパッケージ(webpack等)は\verb|-D|オプションを付けるべきである．
+
+\paragraph{パッケージのアンインストール}
+
+\begin{Verbatim}[numbers=none, xleftmargin=8mm, numbersep=6pt, fontsize=\small, baselinestretch=0.8]
+$ npm uninstall [package name]
+\end{Verbatim}
+%
+グローバルにインストールしたパッケージの削除には\verb|-g|オプションが必要になる．
+
+\paragraph{npm及びパッケージのアップデート}
+
+\begin{Verbatim}[numbers=none, xleftmargin=8mm, numbersep=6pt, fontsize=\small, baselinestretch=0.8]
+$ npm install -g npm@latest  # Update npm to latest version.
+$ npm update [package name]
+\end{Verbatim}
+%
+グローバルにインストールしたパッケージの更新には\verb|-g|オプションが必要になる．
+
+\paragraph{パッケージの一覧表示}
+
+\begin{Verbatim}[numbers=none, xleftmargin=8mm, numbersep=6pt, fontsize=\small, baselinestretch=0.8]
+$ npm list
+\end{Verbatim}
+%
+グローバルにインストールしたパッケージの表示には\verb|-g|オプションが必要になる．
+
+\subsubsection{{\tt package.json}}
+
+Node.jsでは，\verb|package.json|を用いてプロジェクトにインストールされているすべてのパッケージを効率的に管理している．
+
+例えばインストールしたパッケージ及びその依存パッケージは\verb|node_modules|以下に格納されるが，Gitにプッシュする際はこのディレクトリを除外することが多い．
+しかし，インストールしたパッケージや依存関係を記した\verb|package.json|さえダウンロードすれば，同ディレクトリ上で\verb|npm install|を実行することですべてのパッケージを一括インストールできる．
+
+以下は本プロジェクトにおける\verb|package.json|である．
+
+\begin{VerbatimInput}[numbers=left, xleftmargin=8mm, numbersep=6pt, fontsize=\small, baselinestretch=0.8]
+{../package.json}
+\end{VerbatimInput}
+
+\verb|package.json|は，そのプロジェクトをnpmパッケージとして公開するという目線で読むと分かりやすい．
+例えば\verb|name|はパッケージ名となる．
+
+インストールしたパッケージは\verb|dependencies|に記述されている．
+なぜ「依存関係」として記述するかというと，当プロジェクトをパッケージとして公開する場合に，一緒にインストールしてもらう必要があるものだからである．
+
+\verb|script|はnpm-scriptと呼ばれ，スクリプト名とシェルスクリプトの組で定義する．
+\verb|npm [script name]|としてコマンドを実行すると，定義したシェルスクリプトを実行できる．
+
+\subsection{webpackとは}
+
+{\bf webpack}とは，複数のJSファイルやCSS，画像等を1つのJSファイルにまとめるモジュールバンドラである．
+モジュール分割による開発効率向上だけでなく，1つのファイルにまとめることでHTTPリクエストの数を減らすことにも繋がる．
+また，JSファイルの圧縮やローカルサーバの起動等，フロントエンドにおける開発環境がwebpack一つで整う点も特徴である．
+
+インストール方法は以下の通りである．
+
+\begin{Verbatim}[numbers=none, xleftmargin=8mm, numbersep=6pt, fontsize=\small, baselinestretch=0.8]
+$ npm i -D webpack webpack-cli webpack-dev-server
+\end{Verbatim}
+%
+\verb|webpack-cli|はwebpackをCUI操作するためのツールで，ver4.0以降から必要なものである．
+\verb|webpack-dev-server|はローカルサーバの起動や，ソースの変更を検知(watch)しビルドの自動実行とリロードを行うツールである．
+
+エントリポイントと呼ばれるメインのJSファイル(TSやJSXファイルも可)を基準に複数ファイルがバンドルされ，1つのJSファイルが作成される．
+それをHTMLで読み込むことで，クライアントサイドでの動作を確認できる．
+
+webpackの利用には\verb|webpack.config.js|の利用が一般的であり，詳しくは\secref{sec:dev-env}で解説する．
+
+%--------------------------------------------------------------------%
+\section{環境構築} \label{sec:dev-env}
+
+本プロジェクトにおける環境構築の手順を示す\cite{www:8}．
+
+\subsection{プロジェクトの開始}
+
+まず，以下のコマンドでプロジェクトの初期化及び開発環境の構築に必要なパッケージのインストールを行う．
+
+\begin{Verbatim}[numbers=none, xleftmargin=8mm, numbersep=6pt, fontsize=\small, baselinestretch=0.8]
+$ npm init -y
+$ npm i -D webpack webpack-cli webpack-dev-server
+$ npm i -D typescript ts-loader
+$ npm i -D mini-css-extract-plugin css-loader sass sass-loader
+$ npm i -D html-webpack-plugin
+\end{Verbatim}
+
+\subsection{スクリプトの作成}
+
+次に，以下のnpm-scriptを用意する．
+
+\begin{Verbatim}[numbers=none, xleftmargin=8mm, numbersep=6pt, fontsize=\small, baselinestretch=0.8]
+"dev":   "webpack serve --mode development",
+"build": "webpack build --mode production"
+\end{Verbatim}
+%
+
+なお，\verb|--mode|オプションの概要は以下の通りである．
+
+\begin{itemize}
+  \item {\tt development}: ソースマップが作成され，ビルド結果に付加される．
+  \item {\tt production}:  ビルド結果を圧縮して生成する．
+\end{itemize}
+
+\subsection{webpackの設定}
+
+次に，\verb|webpack.config.js|を以下のように作成する．
+
+\begin{VerbatimInput}[numbers=left, xleftmargin=8mm, numbersep=6pt, fontsize=\small, baselinestretch=0.8]
+{../webpack.config.js}
+\end{VerbatimInput}
+
+設定のポイントをいくつかまとめる．
+
+まず，\verb|resolve|の\verb|extensions|の指定により，JSファイルとTSファイルをモジュールとして扱うことを明示している．
+例えば，\verb|module1.js|をインポートする際，\verb|import func from 'module1'|のように，拡張子を省略することができる．
+これは，\verb|module1|という名前のJSファイルもしくはTSファイルをモジュールとして探すことを意味する．
+
+また，\verb|alias|はインポート時のパスの指定を簡単化するために設定している．
+これにより，絶対パスによるインポートを\verb|import foo from '@/ts/molude1'|のように記述できる．
+
+モジュールに対するルール設定においては，\verb|test|に指定したファイルに対して\verb|loader|もしくは\verb|use|配列にしていしたモジュールを適用するよう指定している．
+\verb|use|配列に指定したモジュールは配列の末尾から順に適用される点がポイントである．
+例えば今回なら，\verb|sass-loader|でCSSへのコンパイルを，\verb|css-loader|でJSへのバンドルを行い，\verb|mini-css-extract-plugin|で\verb|style.css|として出力する流れとなる．
+
+\verb|html-webpack-plugin|はHTMLをwebpackから出力するためのモジュールで，バンドルされたJSファイルやCSSファイルの読み込みを意識することなくHTMLを記述することができる．
+
+%--------------------------------------------------------------------%
+\begin{thebibliography}{99}
+  \bibitem{www:1}  Node.jsとはなにか？， \spverb!https://qiita.com/non_cal/items/a8fee0b7ad96e67713eb!，2024/12/5
+  \bibitem{www:2}  nodejsとは，\spverb!https://kinsta.com/jp/knowledgebase/what-is-node-js/!，2024/12/5.
+  \bibitem{www:3}  npmとは，\spverb!https://kinsta.com/jp/knowledgebase/what-is-npm/!，2024/12/5.
+  \bibitem{www:4}  package.jsonの中身を理解する，\\ \spverb!https://qiita.com/dondoko-susumu/items/cf252bd6494412ed7847!，2024/12/5.
+  \bibitem{www:5}  最新版で学ぶwebpack 5入門，\spverb!https://ics.media/entry/12140/!，2024/12/5.
+  \bibitem{www:7}  npm install の --save-dev って何？，\\ \spverb!https://qiita.com/kohecchi/items/092fcbc490a249a2d05c!，2024/12/6.
+  \bibitem{www:8}  TypeScriptチュートリアル -環境構築編-，\\ \spverb!https://qiita.com/ochiochi/items/efdaa0ae7d8c972c8103!，2024/12/6.
+  \bibitem{www:9}  webpackの苦手意識を無くす，\spverb!https://zenn.dev/msy/articles/c1f00c55e88358!，2024/12/8.
+  \bibitem{www:10} ，\spverb!!，2024/12/.
+  \bibitem{www:11} ，\spverb!!，2024/12/.
+  
+  
+\end{thebibliography}
+%--------------------------------------------------------------------%
+\end{document}
