@@ -4,27 +4,39 @@
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <title>SyntaxHighlight</title>
-        <link rel="stylesheet" href="./styles/reset.css">
-        <link rel="stylesheet" href="./styles/base.css">
-        <link rel="stylesheet" href="./styles/style.css">
     </head>
     <body>
-        <div class="wrapper">
-            <div class="edit item">
-                <select id="select">
-                    <option value="c">C</option>
-                    <option value="html" selected>HTML</option>
-                    <option value="exe">Result</option>
-                </select>
-            </div>
-            <div class="item">
-                <div class="c-code__container">
-                    <h5 class="c-code__title">SyntaxHighlight</h5>
-                    <div style="position: relative;">
-                        <div class="c-code__source" id="code" style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; pointer-events: none; white-space: pre-wrap;"></div>
-                        <textarea id="txt" style="position: relative; background: transparent; color: transparent; caret-color: black; width: 100%; height: 100%;"></textarea>
-                    </div>
+        <div class="bg"></div>
+        <div class="container">
+            <div class="header">
+                <button id="lang-btn"></button>
+                <div id="config-popup">
+                    <label class="item">
+                        <input type="radio" id="bash" name="lang">
+                        <span>Bash</span>
+                    </label>
+                    <label class="item">
+                        <input type="radio" id="html" name="lang">
+                        <span>HTML</span>
+                    </label>
+                    <label class="item">
+                        <input type="radio" id="css" name="lang">
+                        <span>CSS</span>
+                    </label>
+                    <label class="item">
+                        <input type="radio" id="scss" name="lang">
+                        <span>SCSS</span>
+                    </label>
+                    <label class="item">
+                        <input type="radio" id="c" name="lang">
+                        <span>C</span>
+                    </label>
                 </div>
+            </div>
+            <div class="content">
+                <div id="line-num"></div>
+                <code id="code" class="overlay"></code>
+                <textarea id="text" class="text"></textarea>
             </div>
         </div>
     </body>

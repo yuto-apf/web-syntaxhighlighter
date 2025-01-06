@@ -1,5 +1,5 @@
 import { Token, ClassName, PatternList } from './type';
-import { mod } from './helper';
+import { mod } from '../helper';
  
 export default abstract class Syntaxhighlight {
     src:    string;
@@ -35,23 +35,60 @@ export default abstract class Syntaxhighlight {
                 }
             }
         }
-    
         return tokens;
     }
 
-    highlightBrackets() {
+    highlightBrackets(tokens: Token[]) {
+        const includesOpenBracket = (lex: string) => {
+            return lex.includes('(') || lex.includes('{') || lex.includes('[')
+                ? true
+                : false
+        }
+
+        const includesCloseBracket = (lex: string) => {
+            return lex.includes(')') || lex.includes('}') || lex.includes(']')
+                ? true
+                : false
+        }
+
         let bracketNest = 0;
 
-        this.tokens.forEach((token, i) => {
-            if (token.type === 'bracketOpen') {
-                bracketNest = mod(bracketNest, 3) + 1
-                this.modifyTokenClassName(i, `hl-b-${bracketNest}`);
-            } 
-            if (token.type === 'bracketClose') {
-                this.modifyTokenClassName(i, `hl-b-${bracketNest}`);
+        tokens.forEach((token, i) => {
+            if (token.tag?.includes('ignoreHighlightBrackets')) return;
+            if (includesOpenBracket(token.lexeme)) {
+                bracketNest = mod(bracketNest, 3) + 1;
+                tokens[i].className = `hl-b-${bracketNest}`;
+            }
+            if (includesCloseBracket(token.lexeme)) {
+                tokens[i].className = `hl-b-${bracketNest}`;
                 bracketNest = bracketNest - 1 || 3;
             }
         });
+
+        return tokens;
+    }
+
+    highlightEscapeSequence(tokens: Token[]) {
+        const parseString = (lex: string) => {
+            const patternLists: { [key: string]: PatternList } = {
+                es: { pattern: /^\\(?:[0-9a-fA-F]{4}|\S)/, className: 'hl-es' },
+            }
+            const tokens = this.lexicalAnalysis(lex, patternLists);
+
+            return this.lexicalAnalysis(lex, patternLists).map(token => ({
+                ...token,
+                className: token.type === 'other' ? 'hl-str' : 'hl-es',
+            }));
+        }
+
+        const newTokens: Token[] = [];
+        
+        tokens.forEach(token => {
+            if (token.type === 'string') newTokens.push(...parseString(token.lexeme));
+            else                         newTokens.push(token);
+        });
+
+        return newTokens;
     }
 
     replaceTokens(pos: number, tokens: Token[]) {
@@ -63,49 +100,24 @@ export default abstract class Syntaxhighlight {
     }
 
     getHighlightedSrc() {
-        // let highlightedSrc = '';
-
-        // this.parseTokens();
-
-        // // let start = 0;
-        // this.tokens.forEach(({ lexeme, className }) => {
-        //     highlightedSrc += className ? `<span class='${className}'>${this.escape(lexeme)}</span>` : lexeme;
-        //     // const replacement = className ? `<span class='${className}'>${this.escape(lexeme)}</span>` : this.escape(lexeme);
-        //     // console.log(this.src.slice(start))
-        //     // this.src = this.src.replaceFrom(start, lexeme, replacement);
-        //     // start += replacement.length || lexeme.length;
-        // });
-
-        // return highlightedSrc;
-        // // console.log(this.tokens)
-        // // console.log(this.src)
-        // // return this.src;
-
         this.parseTokens();
 
         let highlightedSrc = '';
         let i = 0;
         this.tokens.forEach(({ lexeme, className }) => {
             const lexFrom = this.src.indexOf(lexeme, i);
-            if (i < lexFrom) {
-                // src のうち、未処理の部分（ホワイトスペースなど）を追加
-                highlightedSrc += this.src.slice(i, lexFrom);
-            }
 
-            // トークンをハイライト
+            if (i < lexFrom) highlightedSrc += this.src.slice(i, lexFrom);
             highlightedSrc += className
                 ? `<span class='${className}'>${this.escape(lexeme)}</span>`
                 : this.escape(lexeme);
-
-            // src の処理済み部分を進める
+                
             i = lexFrom + lexeme.length;
         });
+        if (i < this.src.length) {
+            highlightedSrc += this.src.slice(i);
+        }
 
-        // 残りの未処理部分を追加
-        // if (i < this.src.length) {
-        //     highlightedSrc += this.src.slice(i);
-        // }
-        console.log(highlightedSrc)
         return highlightedSrc;
     }
 

@@ -1,0 +1,71 @@
+@use '_variable' as *;
+
+// For Fontawesome 6
+@mixin fontawesome($style: 'solid', $unicode) {
+    @if $style == 'solid' {
+        font: var(--fa-font-solid);
+    } 
+    @if $style == 'regular' {
+        font: var(--fa-font-regular);
+    } 
+    @if $style == 'brands' {
+        font: var(--fa-font-brands);
+    }
+    content: $unicode;
+}
+
+@mixin FullWindow {
+    width:  100vw;
+    height: 100vh;
+}
+
+@mixin PlaceChildCenter {
+    display: grid;
+    place-items: center;
+}
+
+@mixin codeContent($type: 'editor') {
+    position: absolute;
+    top: $code_content-padding;
+    left: calc($code_line-num-width + 1em);
+    font-family: $code-font;
+    font-size: 1.4rem;
+    line-height: 1.4;
+    letter-spacing: 0;
+    white-space: pre;
+    overflow: auto;
+    width:  calc(100% - $code_content-padding - $code_line-num-width);
+    height: calc(100% - $code_content-padding * 2);
+
+    &::-webkit-scrollbar {
+        width:  10px; 
+        height: 10px;
+    }
+
+    &::-webkit-scrollbar-thumb {
+        background: #5e6163;
+        border-radius: 7px;
+        border: 2px solid transparent;
+        background-clip: padding-box;
+    }
+
+    &::-webkit-scrollbar-corner {
+        background: #2e3235;
+        border-radius: 7px;
+    }
+
+    &::-webkit-scrollbar-track {
+        background: #2e3235;
+        border-radius: 7px;
+        margin: 4px;
+    }
+
+    @if $type == 'line-num' {
+        left: 0;
+        width: $code_line-num-width;
+        
+        &::-webkit-scrollbar {
+            display: none;
+        }
+    }
+}

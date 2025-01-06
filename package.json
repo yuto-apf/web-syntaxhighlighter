@@ -11,6 +11,7 @@
   "author": "Yuto Matsuda",
   "license": "ISC",
   "devDependencies": {
+    "@fortawesome/fontawesome-free": "^6.7.1",
     "css-loader": "^7.1.2",
     "html-webpack-plugin": "^5.6.3",
     "mini-css-extract-plugin": "^2.9.2",

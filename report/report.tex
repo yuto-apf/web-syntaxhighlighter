@@ -8,6 +8,30 @@
 \usepackage{graphicx}
 \usepackage{fancyvrb}
 \usepackage{spverbatim}
+
+\usepackage{listings,jvlisting} %日本語のコメントアウトをする場合jvlisting（もしくはjlisting）が必要
+
+\lstset{
+  basicstyle={\ttfamily\small},
+  numberstyle={\ttfamily\small\llap}
+  identifierstyle={\small},
+  commentstyle={\smallitshape},
+  keywordstyle={\small\bfseries},
+  ndkeywordstyle={\small},
+  stringstyle={\small\ttfamily},
+  frame={htb},
+  breaklines=true,
+  columns=[l]{fullflexible},
+  numbers=left,
+  xrightmargin=0zw,
+  xleftmargin=1.6zw,
+  numberstyle={\scriptsize},
+  stepnumber=1,
+  numbersep=1zw,
+  lineskip=-0.5ex
+}
+\renewcommand{\lstlistingname}{図}
+
 \renewcommand{\theFancyVerbLine}{\texttt{\footnotesize{\arabic{FancyVerbLine}:}}}
 
 % paragraph環境の■を数字に変更
@@ -29,10 +53,11 @@
 \newcommand{\figref}[1]{\makebox{図~\ref{#1}}}
 \newcommand{\tabref}[1]{\makebox{表~\ref{#1}}}
 \newcommand{\secref}[1]{\makebox{第~\ref{#1}~章}}
+\newcommand{\subsecref}[1]{\makebox{第~\ref{#1}~節}}
 \newcommand{\mathref}[1]{\makebox{(\ref{#1})式}}
 
 \title{TypeScriptによるWebシンタックスハイライト} 
-\author{松田 悠斗 (MATSUDA, Yuto)}
+% \author{松田 悠斗 (MATSUDA, Yuto)}
 \date{\number\year 年\number\month 月\number\day 日}
 
 %%======== 本文 ====================================================%%
@@ -45,10 +70,12 @@
 \section{概要}
 
 本プロジェクトでは，TypeScriptでWebページ用のシンタックスハイライト(コードの色付け)を作成する．
-ブログにおけるソースコードの自動スタイリングを目的とし，プログラムを作成した．
-本プロジェクトはReactやNext.jsへの移行を想定したものであり，これを利用すれば効率的な自作ハイライティングを実装できる．
+また，Node.jsやその他ツールについての理解を深めることも本プロジェクトの目的である．
 
-また，プログラムの実装だけでなく，Node.jsやその他ツールについての理解を深めることも本プロジェクトの目的である．
+本プロジェクトではブログにおけるソースコードの自動スタイリングを目的とし，プログラムを作成した．
+これはReactやNext.jsへの移行を想定したものであり，これを利用すれば効率的な自作ハイライティングを実装できる．
+
+今回はシンタックスハイライトの機能実装に加え，リアルタイムにハイライトの様子を確認できるようリッチテキスト風のテキストエディタをフロントエンドとして実装していく．
 
 本プロジェクトにおける実行環境を以下に示す．
 
@@ -59,8 +86,8 @@
   \item npm 10.4.0
   \item webpack 5.97.0
 \end{itemize}
-
-また，Node.jsバージョン管理ツールVoltaの利用も検討したが，今回は利用を見送った．
+%
+その他パッケージについては，使用する際に別途記述していく．
 
 %--------------------------------------------------------------------%
 \section{実行環境及びツールの概要}
@@ -156,11 +183,9 @@ Node.jsでは，\verb|package.json|を用いてプロジェクトにインスト
 例えばインストールしたパッケージ及びその依存パッケージは\verb|node_modules|以下に格納されるが，Gitにプッシュする際はこのディレクトリを除外することが多い．
 しかし，インストールしたパッケージや依存関係を記した\verb|package.json|さえダウンロードすれば，同ディレクトリ上で\verb|npm install|を実行することですべてのパッケージを一括インストールできる．
 
-以下は本プロジェクトにおける\verb|package.json|である．
+\figref{prog:package}は本プロジェクトにおける\verb|package.json|である．
 
-\begin{VerbatimInput}[numbers=left, xleftmargin=8mm, numbersep=6pt, fontsize=\small, baselinestretch=0.8]
-{../package.json}
-\end{VerbatimInput}
+\lstinputlisting[caption={\tt package.json}, label={prog:package}]{../package.json}
 
 \verb|package.json|は，そのプロジェクトをnpmパッケージとして公開するという目線で読むと分かりやすい．
 例えば\verb|name|はパッケージ名となる．
@@ -196,7 +221,7 @@ webpackの利用には\verb|webpack.config.js|の利用が一般的であり，�
 
 本プロジェクトにおける環境構築の手順を示す\cite{www:8}．
 
-\subsection{プロジェクトの開始}
+\subsection{プロジェクトの開始} \label{sec:projstart}
 
 まず，以下のコマンドでプロジェクトの初期化及び開発環境の構築に必要なパッケージのインストールを行う．
 
@@ -205,6 +230,7 @@ $ npm init -y
 $ npm i -D webpack webpack-cli webpack-dev-server
 $ npm i -D typescript ts-loader
 $ npm i -D mini-css-extract-plugin css-loader sass sass-loader
+$ npm i -D @fortawesome/fontawesome-free
 $ npm i -D html-webpack-plugin
 \end{Verbatim}
 
@@ -227,11 +253,9 @@ $ npm i -D html-webpack-plugin
 
 \subsection{webpackの設定}
 
-次に，\verb|webpack.config.js|を以下のように作成する．
+次に，\verb|webpack.config.js|を\figref{prog:webpack}のように作成する．
 
-\begin{VerbatimInput}[numbers=left, xleftmargin=8mm, numbersep=6pt, fontsize=\small, baselinestretch=0.8]
-{../webpack.config.js}
-\end{VerbatimInput}
+\lstinputlisting[caption={\tt webpack.config.js}, label={prog:webpack}]{../webpack.config.js}
 
 設定のポイントをいくつかまとめる．
 
@@ -248,6 +272,728 @@ $ npm i -D html-webpack-plugin
 
 \verb|html-webpack-plugin|はHTMLをwebpackから出力するためのモジュールで，バンドルされたJSファイルやCSSファイルの読み込みを意識することなくHTMLを記述することができる．
 
+\subsection{{\tt tsconfig.json}の設定}
+
+まず，以下のコマンドで\verb|tsconfig.json|を作成する．
+
+\begin{Verbatim}[numbers=none, xleftmargin=8mm, numbersep=6pt, fontsize=\small, baselinestretch=0.8]
+$ tsc --init
+\end{Verbatim}
+
+コメントを削除し，パスエイリアスの設定を施した\verb|tsconfig.json|を\figref{prog:tsconfig}に示す．
+
+\lstinputlisting[caption={\tt tsconfig.json}, label={prog:tsconfig}]{../tsconfig.json}
+
+
+%--------------------------------------------------------------------%
+\section{フロントエンドのスタイリング}
+
+まず，シンタックスハイライトの動作確認のためにテキストエディタを作成，スタイリングする．
+
+\subsection{FontAwesomeの設定}
+
+\subsecref{sec:projstart}にてWebアイコンの配信サービスであるFontAwesomeをインストールしたが，エントリポイントで必要なモジュールをインポートする必要がある．
+そこで，エントリポイント\verb|main.ts|の冒頭に以下の記述を追加する．
+
+\begin{Verbatim}[numbers=none, xleftmargin=8mm, numbersep=6pt, fontsize=\small, baselinestretch=0.8]
+import '@fortawesome/fontawesome-free/js/fontawesome';
+import '@fortawesome/fontawesome-free/js/solid';
+import '@fortawesome/fontawesome-free/js/regular';
+import '@fortawesome/fontawesome-free/css/all.css';
+\end{Verbatim}
+
+次に，CSS側から簡単に利用できるよう，以下の\verb|mixin|を作成する．
+
+\begin{Verbatim}[numbers=none, xleftmargin=8mm, numbersep=6pt, fontsize=\small, baselinestretch=0.8]
+@mixin fontawesome($style: 'solid', $unicode) {
+    @if $style == 'solid' {
+        font: var(--fa-font-solid);
+    } 
+    @if $style == 'regular' {
+        font: var(--fa-font-regular);
+    } 
+    @if $style == 'brands' {
+        font: var(--fa-font-brands);
+    }
+    content: $unicode;
+}
+\end{Verbatim}
+
+\subsection{背景テーマの作成}
+
+背景は宇宙をイメージし，星が散らばるアニメーションを作成した\cite{www:10}．
+これはTSによるCSSアニメーションの動的な制御によって実装した．
+
+背景デザインに関するHTML，SCSS，TSを抜粋して\figref{prog:bg-html}--\figref{prog:bg-ts}に示す．
+
+\begin{lstlisting}[caption={\tt index.html(背景部分抜粋)}, label={prog:bg-html}]
+<body>
+  <div class="bg"></div>
+</body>
+\end{lstlisting}
+
+
+\begin{lstlisting}[caption={\tt bg.scss}, label={prog:bg-scss}]
+  .bg {
+    background: #000;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    perspective: 500px;
+    -webkit-perspective: 500px;
+    -moz-perspective: 500px;
+
+    .stars {
+        position: absolute;
+        top:  50%;
+        left: 50%;
+        width:  1px;
+        height: 1px;
+
+        .star {
+            display: block;
+            position: absolute;
+            top:  50%;
+            left: 50%;
+            width:  5px;
+            height: 5px;
+            border-radius: 100%;
+            transform: 
+              translate(-50%,-50%) rotate(var(--angle)) 
+              translateY(-100px) translateZ(0)
+            ;
+            background: #fff;
+            animation: ScatteringStars 4s var(--delay) linear infinite;
+        }
+    }
+}
+  
+@keyframes ScatteringStars {
+    from { 
+        transform: 
+            translate(-50%, -50%) rotate(var(--angle)) 
+            translateY(-100px) translateZ(var(--z))
+        ;
+    }
+    to {   
+        transform: 
+            translate(-50%, -50%) rotate(var(--angle)) 
+            translateY(-75vw) translateZ(var(--z))
+        ;
+    }
+}
+\end{lstlisting}
+
+\begin{lstlisting}[caption={\tt bgAnime.ts}, label={prog:bg-ts}]
+type StarConfig = {
+    angle: number,
+    z:     number,
+    delay: string,
+};
+
+export default function bgAnime() {
+    const bg = document.getElementsByClassName('bg')[0];
+    const stars = document.createElement('div');
+    const starsProps: StarConfig[] = [
+        { angle: 0,   z: -100, delay: '-2.0s' },
+        { angle: 30,  z: -200, delay: '-1.3s' },
+        { angle: 60,  z: -10,  delay: '-4.2s' },
+        { angle: 90,  z: -90,  delay: '-3.3s' },
+        { angle: 120, z: -180, delay: '-2.1s' },
+        { angle: 150, z: -300, delay: '-5.3s' },
+        { angle: 180, z: -150, delay: '-6.7s' },
+        { angle: 210, z: -220, delay: '-1.5s' },
+        { angle: 240, z: -250, delay: '-2.4s' },
+        { angle: 270, z: -30,  delay: '-3.1s' },
+        { angle: 300, z: -80,  delay: '-5.0s' },
+        { angle: 330, z: -120, delay: '-7.1s' },
+    ];
+
+    stars.classList.add('stars');
+    bg.appendChild(stars);
+    starsProps.forEach(({ angle, z, delay }) => {
+        const star = document.createElement('span');
+        star.classList.add('star');
+        star.style.setProperty('--angle', `${angle}deg`);
+        star.style.setProperty('--z',     `${z}px`);
+        star.style.setProperty('--delay', delay);
+        stars.appendChild(star);
+    });
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    bgAnime();
+});
+\end{lstlisting}
+
+TS側で動的に星を表現する要素(\verb|star|)を追加しているのは，HTMLを煩雑にさせないためである．
+星の数や設定値をランダムにすると，星の動きにランダムさを持たせることができる．
+
+\subsection{エディタの作成}
+
+次に，実際にコードを打ち込むエディタを作成する．
+ヘッダ部とコンテンツ部に分けて実装し，ヘッダ部では言語の選択が行えるようにする．
+
+エディタの枠組み部分を\figref{prog:editor-base-html}及び\figref{prog:editor-base-scss}に示す．
+
+\begin{lstlisting}[caption={\tt index.html(エディタ枠組み抜粋)}, label={prog:editor-base-html}]
+<div class="container">
+    <div class="header">
+        <!-- header -->
+    </div>
+    <div class="content">
+        <!-- content -->
+    </div>
+</div>
+\end{lstlisting}
+
+\begin{lstlisting}[caption={\tt style.scss(エディタ枠組み抜粋)}, label={prog:editor-base-scss}]
+.container {
+    display: flex;
+    flex-direction: column;
+    z-index: 100;
+    width:  80%;
+    max-width: 800px;
+    height: 80%;
+    max-height: 500px;
+    box-shadow: 0 0 15px 7px rgba(255, 255, 255, 0.5);
+
+    .header {
+        // header style
+    }
+
+    .content {
+        // content style
+    }
+}
+\end{lstlisting}
+
+\subsubsection{ヘッダ部の作成}
+
+エディタのヘッダ部では，ハイライト言語の表示部を用意し，これをクリックすることで言語選択のメニューが表示できるように実装していく．
+メニューの表示や言語の設定等の制御はTSで行う．
+
+\figref{prog:head-html}--\figref{prog:head-ts}にコンテンツ部のデザイン及び制御プログラムを示す．
+
+\begin{lstlisting}[caption={{\tt index.html(ヘッダ部抜粋)}}, label={prog:head-html}]
+<div class="header">
+    <button id="lang-btn"></button>
+    <div id="config-popup">
+        <label class="item">
+            <input type="radio" id="html" name="lang">
+            <span>HTML</span>
+        </label>
+        <label class="item">
+            <input type="radio" id="css" name="lang">
+            <span>CSS</span>
+        </label>
+        <label class="item">
+            <input type="radio" id="scss" name="lang">
+            <span>SCSS</span>
+        </label>
+        <label class="item">
+            <input type="radio" id="c" name="lang">
+            <span>C</span>
+        </label>
+    </div>
+</div>
+\end{lstlisting}
+
+\begin{lstlisting}[caption={{\tt style.scss(ヘッダ部抜粋)}}, label={prog:head-scss}]
+@keyframes openPopup {
+    0% {
+        opacity: 0;
+    } 100% {
+        opacity: 1;
+    }
+}
+
+@keyframes closePopup {
+    0% {
+        opacity: 1;
+    } 100% {
+        opacity: 0;
+    }
+}
+
+.header {
+    position: relative;
+    height: $code_header-hgt;
+    background: #000;
+    box-shadow: 0px 5px 10px -5px rgba(0, 0, 0, 0.5);
+
+    #lang-btn {
+        margin-left: .5em;
+        color: #fff;
+
+        &.html::before {
+            content: "< >";
+            display: inline-block;
+            font-weight: 900;
+            font-size: 1.2em;
+            color: #ec9751;
+            transform:
+                translateY(2px)
+                scaleX(.6)
+            ;
+        }
+
+        &.css::before {
+            content: '#';
+            font-weight: 900;
+            color: #72c1ff;
+            padding: 0 .5em 0 .75em;
+        }
+
+        &.scss::before {
+            @include fontawesome('brands', '\f41e');
+            font-size: .9em;
+            padding: 0 .25em 0 0.5em;
+            color: #ed5262;
+        }
+
+        &.c::before {
+            content: 'C';
+            font-weight: 900;
+            color: #72c1ff;
+            padding: 0 .5em 0 .75em;
+        }
+    }
+
+    #config-popup {
+        position: absolute;
+        left: 1.5em;
+        z-index: 600;
+        opacity: 0;
+        pointer-events: none;
+        text-align: left;
+        color: #fff;
+        background: #2e3235;
+        box-shadow: 0 2px 3px rgb(0,0,0,.9);
+        border: 1.5px solid #bdbdbd;
+
+        &.open {
+            animation: openPopup .2s forwards;
+            pointer-events: auto;
+        }
+
+        &.close {
+            animation: closePopup .2s forwards;
+            pointer-events: none;
+        }
+
+        
+        .item {
+            position: relative;
+            cursor: pointer;
+            display: block;
+            width: 100%;
+            font-size: .8em;
+            padding: .25em .5em 0 1.75em;
+
+            &:last-child {
+                padding-bottom: .25em;
+            }
+
+            &:hover {
+                background: rgba(255, 255, 255, .25);
+            }
+
+            &.checked {
+                &::before {
+                    @include fontawesome('solid', '\f00c');
+                    position: absolute;
+                    top:  40%;
+                    left: 10%;
+                }
+            }
+        }
+    }
+}
+\end{lstlisting}
+
+\begin{lstlisting}[caption={{\tt main.ts(ヘッダ制御部抜粋)}}, label={prog:head-ts}]
+const langBtn    = <HTMLElement>document.getElementById('lang-btn');
+const langList   = <HTMLCollectionOf<Element>>document.getElementsByClassName('item');
+const langRadios = <NodeListOf<HTMLInputElement>>document.getElementsByName('lang');
+const langConfig = <HTMLElement>document.getElementById('config-popup');
+
+let isOpenLangConfig = false;
+let currentLang = 'html';
+
+const toggleLangConfig = () => {
+    langConfig.classList.remove(isOpenLangConfig ? 'open' : 'close');
+    langConfig.classList.add(isOpenLangConfig ? 'close' : 'open');
+    isOpenLangConfig = !isOpenLangConfig;
+}
+
+const initRadio = () => {
+    const defaultRadio = <HTMLInputElement>document.getElementById(currentLang);
+    const defaultLabel = defaultRadio.parentElement;
+    if (defaultRadio && defaultLabel) {
+        defaultRadio.checked = true;
+        defaultLabel.classList.add('checked');
+    }
+}
+
+const modifyHeaderLangName = (lang: string) => {
+    currentLang = lang;
+    langBtn.classList.remove(...langBtn.classList);
+    langBtn.classList.add(lang);
+    switch (lang) {
+        case 'html': langBtn.innerText = 'HTML'; break;
+        case 'css':  langBtn.innerText = 'CSS';  break;
+        case 'scss': langBtn.innerText = 'SCSS'; break;
+        case 'c':    langBtn.innerText = 'C';    break;
+    }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    initRadio();
+    modifyHeaderLangName(currentLang);
+});
+
+langBtn.addEventListener('click', toggleLangConfig);
+
+[...langList].forEach((elm, i) => {
+    elm.addEventListener('click', () => {
+        const radio = langRadios[i];
+        [...langList].forEach(elm => {
+            elm.classList.remove('checked');
+        });
+        if (radio.checked) {
+            langList[i].classList.add('checked');
+            modifyHeaderLangName(radio.id);
+        }
+        codeHighlight();
+    });
+});
+\end{lstlisting}
+
+このように，言語の初期化に関する処理をTS側に一任することで，HTMLを直接書き換えなくても良い設計になっている．
+今後ハイライト対象の言語を増やす場合には，HTML，SCSS，TSにその旨の記述を追加し，スタイリングを行えば良い．
+
+
+\subsubsection{コンテンツ部の作成}
+
+シンタックスハイライトは入力トークンを適切なクラスを施した\verb|span|タグで囲むことで実現する．
+しかし，\verb|textarea|の入力文字そのものにスタイルを当てることはできないという問題点がある．
+そこで，{\bf テキストエリア上にコード要素をオーバレイ表示する}というアプローチを取った．
+しかしこのままでは2要素を同時にスクロールできないため，TSで同時にスクロールするよう制御を行う．
+
+\figref{prog:overlay-html}--\figref{prog:overlay-ts}にコンテンツ部のデザイン及び制御プログラムを示す．
+
+\begin{lstlisting}[caption={{\tt index.html(コンテンツ部抜粋)}(オーバレイ)}, label={prog:overlay-html}]
+<div class="content">
+    <div id="line-num"></div>
+    <code id="code" class="overlay"></code>
+    <textarea id="text" class="text"></textarea>
+</div>
+\end{lstlisting}
+
+\begin{lstlisting}[caption={{\tt style.scss(コンテンツ部抜粋)}(オーバレイ)}, label={prog:overlay-scss}]
+@mixin codeContent($type: 'editor') {
+    position: absolute;
+    top: $code_content-padding;
+    left: calc($code_line-num-width + 1em);
+    font-family: $code-font;
+    font-size: 1.4rem;
+    line-height: 1.4;
+    letter-spacing: 0;
+    white-space: pre;
+    overflow: auto;
+    width:  calc(100% - $code_content-padding - $code_line-num-width);
+    height: calc(100% - $code_content-padding * 2);
+
+    &::-webkit-scrollbar {
+        width:  10px; 
+        height: 10px;
+    }
+
+    &::-webkit-scrollbar-thumb {
+        background: #5e6163;
+        border-radius: 7px;
+        border: 2px solid transparent;
+        background-clip: padding-box;
+    }
+
+    &::-webkit-scrollbar-corner {
+        background: #2e3235;
+        border-radius: 7px;
+    }
+
+    &::-webkit-scrollbar-track {
+        background: #2e3235;
+        border-radius: 7px;
+        margin: 4px;
+    }
+
+    @if $type == 'line-num' {
+        left: 0;
+        width: $code_line-num-width;
+        
+        &::-webkit-scrollbar {
+            display: none;
+        }
+    }
+}
+
+.content {
+    flex: 1;
+    position: relative;
+    display: flex;
+    background: #2e3235;
+
+    #line-num {
+        display: flex;
+        flex-direction: column;
+        user-select: none;
+        width: 3rem;
+        color: #bdbdbd;
+    }
+
+    .overlay {
+        @include codeContent;
+        pointer-events: none;
+        color: #fff;
+    }
+
+    .text {
+        @include codeContent;
+        resize: none;
+        background: transparent;
+        color: transparent;
+        caret-color: #bdbdbd;
+
+        &::selection {
+            background: rgba(55, 165, 255, 0.3);
+        }
+    }
+}
+\end{lstlisting}
+
+\begin{lstlisting}[caption={{\tt main.ts(コンテンツ制御部抜粋)}(オーバレイ)}, label={prog:overlay-ts}]
+const lineNum    = <HTMLElement>document.getElementById('line-num');
+const code       = <HTMLInputElement>document.getElementById('code');
+const text       = <HTMLInputElement>document.getElementById('text');
+
+text.addEventListener("scroll", synchronizeScroll);
+text.addEventListener('input', () => {
+    codeHighlight();
+});
+text.addEventListener('keydown', (e: KeyboardEvent) => {
+    if (e.key === 'Tab') {
+        e.preventDefault();
+        const startPos = text.selectionStart ?? 0;
+        const endPos   = text.selectionEnd ?? 0;
+        const newPos = startPos + 1;
+        const val = text.value;
+        const head = val.slice(0, startPos);
+        const foot = val.slice(endPos);
+        text.value = `${head}\t${foot}`;
+        text.setSelectionRange(newPos, newPos);
+    }
+    codeHighlight();
+});
+\end{lstlisting}
+
+\verb|main.ts|では，テキストエリアとオーバレイ要素の同時スクロール，及びタブ入力の実装を行っている．
+
+本方針における課題を以下に述べる．
+まず，\verb|overflow: auto;|とした場合，\verb|padding-right|が適用されない現象が起こった．
+疑似要素による力技も試したが改善されなかったため，テキストエリア及びオーバレイ要素を親コンテナよりも小さく設定し，中央配置することで応急処置を図った．
+また，スクロールは始まるがテキストエリアの高さも伸びてしまうという現象が起きたが，これは親要素の\verb|height|を\verb|%|指定していたのが原因であり，\verb|max-height|を指定することで解決できた．
+更に，テキストエリアのスクロールが始まった状態で改行を行うと，1行分の高さが追加されず，表示が崩れる現象が起こった．
+これはおそらくテキストエリアとオーバレイのスクロールが同期されていない点が問題であり，様々な解決策を試したが改善には至らなかった．
+
+%--------------------------------------------------------------------%
+\section{ハイライタの実装}
+
+\subsection{実装方針}
+
+ハイライタの実装方針は次の通りである．
+
+まず，与えられたソースコードを字句単位に分割し，必要に応じて種別とHTMLのクラス名を付加したトークン列を生成する．
+最後にトークン列を順番に走査し，クラス名がある場合は字句要素を\verb|span|タグで囲いながらHTMLを生成する．
+この時，元のソースコードのホワイトスペースを維持しながらHTMLを構築していく点に注意する．
+
+前提としてハイライトを行うソースコードの文法は正しいものと仮定する．
+これにより，ハイライタは簡易的なコンパイラのように構成を考えることができる．
+(例えば，細かい文法チェックはハイライタにおいては不要である．)
+コンパイラが「字句解析」，「構文解析」，「意味解析」，「コード生成」の4フェーズで構成されているのに倣い，
+ハイライタは「字句解析」，「トークン解析」，「コード生成」の3フェーズで構成することとする．
+ここで，「トークン解析」は「字句解析で生成したトークン列を，ソース言語の仕様に従い属性を調整する処理」と定義する．
+
+TSで実装するに当たり，字句解析とコード生成はソース言語によらず処理は共通であるため，これを基底クラスのメソッドとして定義する．
+そして，この基底クラスを継承した派生クラスをソース言語ごとに定義し，内部にトークン解析の処理をメソッドとして定義する．
+
+\subsection{インタフェースの定義}
+
+ハイライタ実装に必要なインタフェースを定義した\verb|type.ts|を\figref{prog:type}に示す．
+
+\begin{lstlisting}[caption={インタフェースの定義({\tt type.ts})}, label={prog:type}]
+export type ClassName = string | null;
+
+export interface Token {
+    lexeme:    string
+    type:      string
+    className: ClassName
+    tag?:      string[] 
+};
+
+export interface PatternList {
+    pattern:   RegExp
+    className: ClassName
+};
+\end{lstlisting}
+
+\verb|Token|は字句解析において生成するデータで，次の要素からなる．
+\begin{itemize}
+    \item 字句要素(\verb|lexeme|)
+    \item トークン種別(\verb|type|)
+    \item クラス名(\verb|className|)
+    \item タグ(\verb|tag|)
+\end{itemize}
+%
+なお，タグはトークン解析の際に付加情報として用いるプロパティである．
+
+\verb|PatternList|は字句解析器に渡すデータで，次の要素からなる．
+\begin{itemize}
+    \item 正規表現(\verb|pattern|)
+    \item クラス名(\verb|className|)
+\end{itemize}
+%
+この\verb|PatternList|を渡された字句解析器は，正規表現\verb|pattern|にマッチする字句要素を切り出し，クラス名を\verb|className|としてトークン列を生成する．
+
+\subsection{基底クラス{\tt SyntaxHighlight}の実装}
+
+\begin{lstlisting}[caption={ハイライタ基底クラス({\tt base.ts})}, label={prog:base}]
+
+\end{lstlisting}
+
+
+
+
+\subsection{HTMLハイライタの実装{\tt HTMLHighlight}}
+
+\begin{lstlisting}[caption={HTMLハイライタ({\tt html.ts})}, label={prog:html}]
+
+\end{lstlisting}
+
+
+
+
+
+
+\subsection{CSS/SCSSハイライタの実装{\tt SCSSHighlight}}
+
+\begin{lstlisting}[caption={CSS/SCSSハイライタ({\tt scss.ts})}, label={prog:scss}]
+
+\end{lstlisting}
+
+
+
+
+
+JSの\verb|split|メソッドはPython等とは異なり，最大分割数を超えた文字列は破棄されてしまう．
+例えば以下のような挙動となる．
+
+\begin{Verbatim}[numbers=none, xleftmargin=8mm, numbersep=6pt, fontsize=\small, baselinestretch=0.8]
+'color: getColor($var: red);'.split(':', 2);  // ['color', ' getColor($var']
+// I want to get an array ['color', 'getColor($var: red);'].
+\end{Verbatim}
+
+そこで，Pythonと同等の\verb|split|メソッドの挙動を得られるよう，\verb|String|クラスに拡張メソッドを定義することを考える．
+
+\paragraph{{\tt interface}の拡張}
+
+組み込みオブジェクトである\verb|String|に，拡張メソッド\verb|splitWithRest()|を定義したい．
+そこで，以下のようにインタフェースを拡張する．
+
+\begin{Verbatim}[numbers=none, xleftmargin=8mm, numbersep=6pt, fontsize=\small, baselinestretch=0.8]
+interface String {
+    splitWithRest(separator: string | RegExp, limit?: number): string[];
+}
+\end{Verbatim}
+%
+これにより\verb|String|オブジェクトに\verb|splitWithRest()|を定義することができる．
+
+\paragraph{メソッド本体の実装}
+
+まず前提として，JS(TS)はプロトタイプベースのオブジェクト指向言語である．
+JSでは各オブジェクトは内部に\verb|prototype|プロパティを保持し，そこにメソッド本体の定義等が行われている．
+
+そのため，\verb|interface|を拡張した後は以下のようにメソッド本体の定義が可能である．
+
+\begin{Verbatim}[numbers=none, xleftmargin=8mm, numbersep=6pt, fontsize=\small, baselinestretch=0.8]
+String.prototype.splitWithRest = function (separator: string | RegExp, limit?: number) {
+    if (limit === undefined) return this.split(separator);
+    if (limit < 0)           return this.split(separator);
+    if (limit === 0)         return [String(this)];
+
+    let   rest = String(this);
+    const ary = [];
+
+    const parts = String(this).split(separator);
+
+    while (limit--) {
+        const part = parts.shift();
+        if (part === undefined) break;
+        ary.push(part);
+        rest = rest.slice(part.length);
+        const match = rest.match(separator);
+        if (match) rest = rest.slice(match[0].length);
+    }
+    if (parts.length > 0) ary.push(rest);
+
+    return ary;
+}
+\end{Verbatim}
+%
+このように，\verb|prototype|は自由に書き換え可能なのだが，その自由度ゆえに名前空間の衝突等が起こり得る(これを{\bf プロトタイプ汚染}という)．
+また，この性質はあらゆるオブジェクトを改変できることを意味するため，XSS等の攻撃にも通ずる重大な脆弱性である．
+
+そこでプロトタイプ汚染を抑制するため，\verb|Object.defineProperties()|を利用する．
+適切な属性を付加しつつ\verb|prototype|を変更することで，安全性を高めることが目的である．
+
+\begin{Verbatim}[numbers=none, xleftmargin=8mm, numbersep=6pt, fontsize=\small, baselinestretch=0.8]
+Object.defineProperties(String.prototype, {
+    splitWithRest: {
+        configurable: true,
+        enumerable: false,
+        writable: true,
+        value: function (separator: string | RegExp, limit?: number) {
+            if (limit === undefined) return this.split(separator);
+            if (limit < 0)           return this.split(separator);
+            if (limit === 0)         return [String(this)];
+
+            let   rest = String(this);
+            const ary = [];
+
+            const parts = String(this).split(separator);
+
+            while (limit--) {
+                const part = parts.shift();
+                if (part === undefined) break;
+                ary.push(part);
+                rest = rest.slice(part.length);
+                const match = rest.match(separator);
+                if (match) rest = rest.slice(match[0].length);
+            }
+            if (parts.length > 0) ary.push(rest);
+
+            return ary;
+        },
+    }
+});
+\end{Verbatim}
+%
+※ここで，メソッド定義の際にアロー関数ではなく\verb|function|を使っているのは，\verb|this|の値の変更を防ぐためである．
+
+グローバルな宣言ではないため，このメソッドの利用には定義ファイルをインポートする必要があることを付記しておく．
+
 %--------------------------------------------------------------------%
 \begin{thebibliography}{99}
   \bibitem{www:1}  Node.jsとはなにか？， \spverb!https://qiita.com/non_cal/items/a8fee0b7ad96e67713eb!，2024/12/5
@@ -258,10 +1004,17 @@ $ npm i -D html-webpack-plugin
   \bibitem{www:7}  npm install の --save-dev って何？，\\ \spverb!https://qiita.com/kohecchi/items/092fcbc490a249a2d05c!，2024/12/6.
   \bibitem{www:8}  TypeScriptチュートリアル -環境構築編-，\\ \spverb!https://qiita.com/ochiochi/items/efdaa0ae7d8c972c8103!，2024/12/6.
   \bibitem{www:9}  webpackの苦手意識を無くす，\spverb!https://zenn.dev/msy/articles/c1f00c55e88358!，2024/12/8.
-  \bibitem{www:10} ，\spverb!!，2024/12/.
-  \bibitem{www:11} ，\spverb!!，2024/12/.
-  
-  
+  \bibitem{www:10} CSSで宇宙空間を表現する。，\spverb!https://qiita.com/junya/items/a2f8984841dc0d559a68!，2024/12/9.
+  \bibitem{www:11} 【Font Awesome】バージョン6で変わったCSS擬似要素の設定でアイコン表示する時の備忘録いろいろ，\\ \spverb!https://www.appleach.co.jp/note/webdesigner/6960/!，2024/12/13.
+  \bibitem{www:12} Webpack5でFontAwesome-freeを利用する，\\ \spverb!https://zenn.dev/manappe/articles/da22d23f73de3b!，2024/12/13.
+  \bibitem{www:13} Documentation， \spverb!https://sass-lang.com/documentation/!，2024/12/18.
+  \bibitem{www:14} プロトタイプ汚染とは，\\ \spverb!https://www.sompocybersecurity.com/column/glossary/prototype-pollution!，2024/12/19.
+  \bibitem{www:15} 「Typescript」でprototypeの沼にハマったので、色々調べてみた。，\\ \spverb!https://note.alhinc.jp/n/n2ee7f772e020!，2024/12/19.
+  \bibitem{www:16} ReactにTypeScriptで拡張メソッドを作る，\\ \spverb!https://qiita.com/s-ueno/items/90030bab006c79173dc5!，2024/12/19.
+  \bibitem{www:17} ，\\ \spverb!!，2024/12/19.
+  \bibitem{www:18} ，\\ \spverb!!，2024/12/18.
+  \bibitem{www:19} ，\\ \spverb!!，2024/12/18.
+
 \end{thebibliography}
 %--------------------------------------------------------------------%
 \end{document}
