@@ -1,46 +1,34 @@
-import Syntaxhighlight from '../base';
-import { Token, PatternList } from '../type';
+import SyntaxHighlighter from '../base';
+import { Token } from '../token';
+import { PatternList } from '../type';
 
-
-const patternLists: { [key: string]: PatternList } = {
-    comment: { pattern: /^(?:<!--[\s\S]*?-->|<!--[\s\S]*)/, className: 'hl-cm' },
-    tag:     { pattern: /^(?:<[\s\S]*?>)/,                  className: null    },
+// TODO: To highlight JS within script tags and CSS within style tags.
+ 
+const patternList: PatternList = {
+    comment:    { regexp: /^(?:<!--[\s\S]*?-->|<!--[\s\S]*)/, className: 'hl-cm'  },
+    tagOpen:    { regexp: /^<[!\/]?/,                         className: 'hl-tag' },
+    tagClose:   { regexp: /^\/?>/,                            className: 'hl-tag' },
+    identifier: { regexp: /^[a-zA-Z_][\w:.-]*/,               className: null     },
+    equal:      { regexp: /^=/,                               className: null     },
+    value:      { regexp: /^(["']).*?\1/,                     className: 'hl-str' },
 };
 
-export default class HTMLHighlight extends Syntaxhighlight {
+export default class HTMLHighlighter extends SyntaxHighlighter {
     constructor(src: string) {
-        super(src, patternLists);
+        super(src, patternList);
     }
 
     parseTokens() {
-        const newTokens: Token[] = [];
-
-        this.tokens.forEach(token => {
-            switch (token.type) {
-                case 'tag': newTokens.push(...this.parseTag(token.lexeme)); break;
-                default:    newTokens.push(token);
-            }
-        });
-
-        this.tokens = newTokens;
+        for (let i = 0; i < this.tokens.length; i++) {
+            const token = this.tokens[i];
+            if (token.type === 'identifier') this.parseIdentifier(i);
+        }
     }
 
-    private parseTag(lex: string) {
-        const patternLists: { [key: string]: PatternList } = {
-            tagOpen:    { pattern: /^<[!\/]?/,           className: 'hl-tag' },
-            tagClose:   { pattern: /^\/?>/,              className: 'hl-tag' },
-            identifier: { pattern: /^[a-zA-Z_][\w:.-]*/, className: null     },
-            equal:      { pattern: /^=/,                 className: null     },
-            value:      { pattern: /^(["']).*?\1/,       className: 'hl-str' },
-        };
-        const tokens = this.lexicalAnalysis(lex, patternLists);
- 
-        tokens.forEach(({ lexeme, type }, i) => {
-            if (type !== 'identifier') return;
-            if (i === 1) tokens[i] = { lexeme, type: 'tagName', className: 'hl-tn'  };
-            else         tokens[i] = { lexeme, type: 'attr',    className: 'hl-attr'};
-        });
-
-        return tokens;
+    private parseIdentifier(pos: number) {
+        const prevToken = (pos > 0) ? this.tokens[pos - 1] : new Token();
+        
+        if (prevToken.isTypeEqualTo('tagOpen'))              this.tokens[pos].setType('tagName').setClassName('hl-tn');
+        if (prevToken.isTypeEqualTo(['tagName', 'value']))   this.tokens[pos].setType('attr').setClassName('hl-attr');
     }
 }

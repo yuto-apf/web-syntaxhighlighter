@@ -1,5 +1,4 @@
 node_modules/
-*.aux
-*.dvi
-*.log
-*.gz
+report/v1.0/*
+!report/**/*.tex
+!report/**/*.pdf

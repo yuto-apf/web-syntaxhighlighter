@@ -1,13 +1,8 @@
 export type ClassName = string | null;
 
-export interface Token {
-    lexeme:    string
-    type:      string
-    className: ClassName
-    tag?:      string[] 
+interface Pattern {
+    regexp:    RegExp
+    className: string | null
 };
 
-export interface PatternList {
-    pattern:   RegExp
-    className: ClassName
-};
+export type PatternList = Record<string, Pattern>;

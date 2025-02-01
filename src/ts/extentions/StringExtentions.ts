@@ -1,6 +1,7 @@
 interface String {
     splitWithRest(separator: string | RegExp, limit?: number): string[];
     replaceFrom(pos: number, searchVal: string | RegExp, replacement: string): string;
+    toRegExp(): RegExp;
 }
 
 Object.defineProperties(String.prototype, {
@@ -8,26 +9,6 @@ Object.defineProperties(String.prototype, {
         configurable: true,
         enumerable: false,
         writable: true,
-        // value: function (separator: string, limit?: number) {
-        //     if (limit === 0)         return [];
-        //     if (limit === undefined) return this.split(separator);
-
-        //     let rest  = String(this);
-        //     const ary = [];
-            
-        //     limit--;
-        //     while (--limit) {
-        //         const idx = rest.indexOf(separator);
-        //         if (idx !== -1) {
-        //             ary.push(rest.slice(0, idx));
-        //             rest = rest.slice(idx + 1);
-        //         } else {
-        //             break;
-        //         }
-        //     }
-
-        //     return [...ary, rest];
-        // },
         value: function (separator: string | RegExp, limit?: number) {
             if (limit === undefined) return this.split(separator);
             if (limit < 0)           return this.split(separator);
@@ -49,6 +30,23 @@ Object.defineProperties(String.prototype, {
             if (parts.length > 0) ary.push(rest);
 
             return ary;
+        },
+    },
+    replaceFrom: {
+        configurable: true,
+        enumerable: false,
+        writable: true,
+        value: function (pos: number, searchVal: string | RegExp, replacement: string) {
+            if (pos < 0 || pos > this.length) return String(this);
+            return this.slice(0, pos) + this.slice(pos).replace(searchVal, replacement);
+        },
+    },
+    toRegExp: {
+        configurable: true,
+        enumerable: false,
+        writable: true,
+        value: function () {
+            return new RegExp(`^(${this.split(' ').join('|')})(?!\\w)`);
         },
     }
 });

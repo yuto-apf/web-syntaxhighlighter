@@ -5,14 +5,13 @@ import '@fortawesome/fontawesome-free/css/all.css';
 import '@/styles/reset.css';
 import '@/styles/style.scss';
 import '@/styles/bg.scss';
-import '@/ts/extentions/ArrayExtentions';
 import '@/ts/extentions/StringExtentions';
 import bgAnime from './bgAnime';
-import Syntaxhighlight from '@/ts/syntaxHighlight/base';
-import BashHighlight   from '@/ts/syntaxHighlight/lang/bash';
-import HTMLHighlight   from '@/ts/syntaxHighlight/lang/html';
-import SCSSHighlight   from '@/ts/syntaxHighlight/lang/scss';
-import CHighlight      from '@/ts/syntaxHighlight/lang/c';
+import Syntaxhighlighter from '@/ts/syntaxHighlight/base';
+import BashHighlighter   from '@/ts/syntaxHighlight/lang/bash';
+import HTMLHighlighter   from '@/ts/syntaxHighlight/lang/html';
+import SCSSHighlighter   from '@/ts/syntaxHighlight/lang/scss';
+import CHighlighter      from '@/ts/syntaxHighlight/lang/c';
 
 
 (() => {
@@ -63,17 +62,18 @@ import CHighlight      from '@/ts/syntaxHighlight/lang/c';
 
     function codeHighlight() {
         const src  = text.value;
-        let highlighter: Syntaxhighlight;
+        let highlighter: Syntaxhighlighter;
 
         switch (currentLang) {
-            case 'bash': highlighter = new BashHighlight(src); break;
-            case 'html': highlighter = new HTMLHighlight(src); break;
-            case 'scss': highlighter = new SCSSHighlight(src); break;
-            case 'css' : highlighter = new SCSSHighlight(src); break;
-            case 'c'   : highlighter = new CHighlight(src);    break;
-            default:     highlighter = new BashHighlight(src);
+            case 'bash': highlighter = new BashHighlighter(src); break;
+            case 'html': highlighter = new HTMLHighlighter(src); break;
+            case 'scss': highlighter = new SCSSHighlighter(src); break;
+            case 'css' : highlighter = new SCSSHighlighter(src); break;
+            case 'c'   : highlighter = new CHighlighter(src);    break;
+            default:     highlighter = new BashHighlighter(src);
         }
-        const highlightedSrc = highlighter.getHighlightedSrc();
+
+        const highlightedSrc = highlighter.generateHTML();
         const lineNumCnt = (highlightedSrc.match(/\n/g) || []).length + 1;
         while (lineNum.firstChild) {
             lineNum.removeChild(lineNum.firstChild);

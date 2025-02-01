@@ -216,11 +216,11 @@ input[type=checkbox], input[type=radio] {
     color: #c9ec7e;
 }
 
-.hl-k2, .hl-tn, .hl-mc {
+.hl-k2, .hl-tn, .hl-vt, .hl-mc {
     color: #589bd8;
 }
 
-.hl-attr {
+.hl-attr, .hl-prop, .hl-v, .hl-cs {
     color: #b0f9fe;
 }
 
@@ -228,8 +228,12 @@ input[type=checkbox], input[type=radio] {
     color: #979797;
 }
 
-.hl-v, .hl-prop {
-    color: #b0f9fe;
+.hl-en {
+    color: #23c7ff;
+}
+
+.hl-al {
+    color: #1ae086;
 }
 
 .hl-b-1 {
