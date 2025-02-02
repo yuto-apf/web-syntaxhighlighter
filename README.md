@@ -4,11 +4,11 @@
 
 You can use it for your JS/TS projects very easily.
 
-Please visit [Web SyntaxHighlighter](URL "https://yuto-apf.github.io/web-syntaxhighlighter/dst/") and try one!
+Please visit [Web SyntaxHighlighter](https://yuto-apf.github.io/web-syntaxhighlighter/dst/) and try one!
 
-## Supported source language
+## Supported source languages
 
-*Web SyntaxHighlighter* supports these source language below.
+*Web SyntaxHighlighter* supports these source languages below.
 
 - Bash prompt
 - HTML
