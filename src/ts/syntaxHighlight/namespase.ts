@@ -46,7 +46,7 @@ export default class Namespace {
     }
 
     register(str: string, type: string) {
-        const objNames = str.split(' ');
+        const objNames = str.split(/\s+/);
         objNames.forEach(objName => this.append(objName, type));
 
         return this;

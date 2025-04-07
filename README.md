@@ -1,6 +1,6 @@
 # Web SyntaxHighlighter
 
-*Web SyntaxHighlighter* is code highlighter for web services such as blog.
+*Web SyntaxHighlighter* is a code highlighter for web services such as a blog.
 
 You can use it for your JS/TS projects very easily.
 

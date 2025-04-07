@@ -1,6 +1,7 @@
 import { PatternList } from './type';
 import { Token, TokenArray } from './token';
 import { mod } from '../helper';
+import Namespace from './namespase';
 
 
 export default abstract class Syntaxhighlighter {
@@ -18,6 +19,7 @@ export default abstract class Syntaxhighlighter {
         const tokens = new TokenArray();
         patternList = {
             ...patternList,
+            externSep:  { regexp: /^%==/, className: null }, 
             other:      { regexp: /^\S/,  className: null },
             whiteSpace: { regexp: /^\s+/, className: null }
         };
@@ -46,6 +48,11 @@ export default abstract class Syntaxhighlighter {
 
         let highlightedSrc = '';
         let i = 0;
+        
+    // console.log(this.tokens)
+    // console.log(this.src)
+        
+        this.src = this.src.trim();
         this.tokens.forEach(({ lexeme, className }) => {
             const lexFrom = this.src.indexOf(lexeme, i);
 
@@ -61,6 +68,34 @@ export default abstract class Syntaxhighlighter {
         }
 
         return highlightedSrc;
+    }
+
+    externDefine() {
+        const match = this.src.match(/^%==\n([\s\S]*)\n%==/);
+        if (!match) return new Namespace();
+
+        const ns    = new Namespace();
+        const rules = match[1].split('\n');
+        for (let i = 0; i < rules.length; i++) {
+            let rule = rules[i];
+            if (!rule.startsWith('%')) continue;
+
+            for (let j = i + 1; j < rules.length; j++) {
+                if (rules[j].startsWith('%')) break;
+                rule = rule.concat(' ', rules[j]);
+            }
+
+            const match = rule.match(/%(\S+)\s+([\s\S]*)/);
+            if (!match) continue;
+            ns.register(match[2], match[1]);
+        }
+
+        // If you make the markdown visible, you comment out these code below.
+        this.src = this.src.slice(match[0].length);
+        this.tokens.shift();
+        while (!this.tokens.shift()?.isTypeEqualTo('externSep'));
+            
+        return ns;
     }
 
     highlightBrackets() {

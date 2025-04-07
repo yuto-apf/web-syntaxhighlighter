@@ -36,12 +36,12 @@ export default class CHighlighter extends Syntaxhighlighter {
 
     constructor(src: string) {
         super(src, patternList);
-        this.nsStack         = new Namespace();
+        this.nsStack         = this.externDefine();
         this.isStackedByFunc = false;
         this.isStackedByFor  = false;
         this.popAtWithSemic  = [];
 
-        this.nsStack.register(macroConstant, 'macroConstant')
+        this.nsStack.register(macroConstant, 'macro')  // match `type` and specifier of extern markdown (e.g.) %macro ...
                     .register(alias, 'alias');
     }
 
@@ -70,7 +70,7 @@ export default class CHighlighter extends Syntaxhighlighter {
                 }
             }
         });
-console.log(JSON.stringify(this.nsStack.getGlobalScope().toJSON()))
+// console.log(JSON.stringify(this.nsStack.getGlobalScope().toJSON()))
         this.highlightBrackets()
             .highlightEscapeSequence()
             .highlightConvertionSpecifier();
@@ -86,7 +86,7 @@ console.log(JSON.stringify(this.nsStack.getGlobalScope().toJSON()))
         
         const ident = this.tokens[kwPos + 1];
         this.tokens[kwPos + 1].setType('macroConstant').setClassName('hl-mc');
-        this.nsStack.append(ident.lexeme, 'macroConstant');
+        this.nsStack.append(ident.lexeme, 'macro');
     }
 
     private parseTypedef(kwPos: number) {
@@ -189,7 +189,7 @@ console.log(JSON.stringify(this.nsStack.getGlobalScope().toJSON()))
         const prevToken = (pos > 0)                      ? this.tokens[pos - 1] : new Token();
         const nextToken = (pos + 1 < this.tokens.length) ? this.tokens[pos + 1] : new Token();
 
-        if (this.nsStack.has(token.lexeme, 'macroConstant')) {
+        if (this.nsStack.has(token.lexeme, 'macro')) {
             this.tokens[pos].setType('macroConstant').setClassName('hl-mc');
         } else if (this.nsStack.has(token.lexeme, 'enumMember')) {
             this.tokens[pos].setType('enumMember').setClassName('hl-en');
