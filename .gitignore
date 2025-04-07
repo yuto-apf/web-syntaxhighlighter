@@ -1,4 +1,6 @@
 node_modules/
 
-report/**/*
-!report/**/*.pdf
+report/v1.0/*
+!report/v1.0/*.pdf
+report/v2.0/*
+!report/v2.0/*.pdf
