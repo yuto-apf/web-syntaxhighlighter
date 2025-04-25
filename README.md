@@ -4,7 +4,7 @@
 
 You can use it for your JS/TS projects very easily.
 
-Please visit [Web SyntaxHighlighter](https://yuto-apf.github.io/web-syntaxhighlighter/dst/) and try one!
+Please visit [Web SyntaxHighlighter](https://yuto-matsuda.github.io/web-syntaxhighlighter/dst/) and try one!
 
 ## Usage
 
